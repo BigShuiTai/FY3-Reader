@@ -2,7 +2,7 @@
 A package includes FY-3 (FengYun-3) MWRI L1 (FY-3D/G) &amp; PMR L2 (FY-3G) reader
 
 ## Install
-For the first time using the package, please run these command:
+For the first time using the package, please run following commands:
 ```Bash
 pip install Cython numpy==1.24.2
 PATH_NUMPY=`pkg-config --cflags numpy` # get the numpy libraries path
