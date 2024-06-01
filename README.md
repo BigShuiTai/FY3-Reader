@@ -6,7 +6,7 @@ A package includes FY-3 (FengYun-3) MWRI L1 (FY-3D/G) &amp; PMR L2 (FY-3G) reade
 
 For the first time using the package, please run following commands:
 ```Bash
-pip install Cython numpy==1.24.2
+pip install Cython numpy==1.24.2 scipy==1.11.1 h5py==3.8.0 matplotlib==3.5.3 pyproj==3.5.0
 python setup.py build_ext --inplace
 ```
 
