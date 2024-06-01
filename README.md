@@ -2,7 +2,7 @@
 A package includes FY-3 (FengYun-3) MWRI L1 (FY-3D/G) &amp; PMR L2 (FY-3G) reader.
 
 ## Installation
-**NOTE: Following commands are tested on Linux System (Debian, Fedora, Ubuntu, CentOS, etc.) only**
+**NOTE: Following commands have only been tested on Linux System (Debian, Fedora, Ubuntu, CentOS, etc.)**
 
 For the first time using the package, please run following commands:
 ```Bash
