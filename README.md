@@ -11,7 +11,7 @@ PATH_NUMPY=`pkg-config --cflags numpy` # get the numpy libraries path
 PATH_NUMPY=${PATH_NUMPY/-I/}
 PATH_NUMPY=${PATH_NUMPY/% /}
 export C_INCLUDE_PATH=$PATH_NUMPY:$C_INCLUDE_PATH
-cythonize -a -i FY3-Reader/fy3Reader/bicubic_interp.pyx
+cythonize -i FY3-Reader/fy3Reader/bicubic_interp.pyx
 ```
 
 ## Package Usage
