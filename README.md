@@ -1,5 +1,5 @@
 # FY3-Reader
-A package includes FY-3 (FengYun-3) MWRI L1 (FY-3D/G) &amp; PMR L2 (FY-3G) reader
+A package includes FY-3 (FengYun-3) MWRI L1 (FY-3D/G) &amp; PMR L2 (FY-3G) reader.
 
 ## Install
 For the first time using the package, please run following commands:
