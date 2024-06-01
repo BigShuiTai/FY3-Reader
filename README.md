@@ -7,11 +7,12 @@ A package includes FY-3 (FengYun-3) MWRI L1 (FY-3D/G) &amp; PMR L2 (FY-3G) reade
 For the first time using the package, please run following commands:
 ```Bash
 pip install Cython numpy==1.24.2
-PATH_NUMPY=`pkg-config --cflags numpy` # get the numpy libraries path
+PATH_NUMPY=`pkg-config --cflags numpy`
 PATH_NUMPY=${PATH_NUMPY/-I/}
 PATH_NUMPY=${PATH_NUMPY/% /}
 export C_INCLUDE_PATH=$PATH_NUMPY:$C_INCLUDE_PATH
 cythonize -i FY3-Reader/fy3Reader/bicubic_interp.pyx
+rm -r FY3-Reader/fy3Reader/build && rm bicubic_interp.c
 ```
 
 ## Package Usage
