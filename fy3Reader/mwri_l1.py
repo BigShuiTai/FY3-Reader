@@ -17,6 +17,7 @@ class FY3D_MWRI_L1(object):
         self.composite_func = None
         self.data = self.latitude = self.longitude = None
         self.MWRI_DATASETS = {"S1": ["btemp_10.0v","btemp_10.0h","btemp_18.0v","btemp_18.0h","btemp_23.0v","btemp_23.0h","btemp_37.0v","btemp_37.0h","btemp_89.0v","btemp_89.0h"]}
+        self.MWRI_DATASETS_EXACT = {"btemp_10.0v":"btemp_10.65v", "btemp_10.0h":"btemp_10.65h", "btemp_18.0v":"btemp_18.7v", "btemp_18.0h":"btemp_18.7h", "btemp_23.0v":"btemp_23.8v", "btemp_23.0h":"btemp_23.8h", "btemp_37.0v":"btemp_36.5v", "btemp_37.0h":"btemp_36.5h", "btemp_89.0v":"btemp_89.0v", "btemp_89.0v":"btemp_89.0h"}
         self.COMPOSITE_BANDS = {
             "89_pct": {"dataset": "S1", "bands":["btemp_89.0v","btemp_89.0h"], "func": PolarizationCorrectedTemperature, "fractions":((1.7, 0.7)), "rgb": False},
             "89_color": {"dataset": "S1", "bands":["btemp_89.0v","btemp_89.0h"], "func": Color_89, "fractions":((1.7, 0.7)), "rgb": True},
@@ -54,6 +55,9 @@ class FY3D_MWRI_L1(object):
 
     def all_available_datasets(self):
         return self.MWRI_DATASETS["S1"]
+
+    def get_exact_dataset_name(self, dataset_name):
+        return self.MWRI_DATASETS_EXACT[dataset_name]
 
     def load(self, name):
         if name in self.MWRI_DATASETS["S1"]:
@@ -183,7 +187,8 @@ class FY3G_MWRI_L1(object):
         self.dataset_name = None
         self.composite_func = None
         self.data = self.latitude = self.longitude = None
-        self.MWRI_DATASETS = {"S1": ["btemp_10.0v","btemp_10.0h","btemp_18.0v","btemp_18.0h","btemp_23.0v","btemp_23.0h","btemp_37.0v","btemp_37.0h","btemp_89.0v","btemp_89.0h"], "S2": ["btemp_50v","btemp_50.0h","btemp_52.0v","btemp_52.0h","btemp_53.24v","btemp_53.24h","btemp_53.75v","btemp_53.75h","btemp_118.0v","btemp_165.0v","btemp_183.0v"]}
+        self.MWRI_DATASETS = {"S1": ["btemp_10.0v","btemp_10.0h","btemp_18.0v","btemp_18.0h","btemp_23.0v","btemp_23.0h","btemp_37.0v","btemp_37.0h","btemp_89.0v","btemp_89.0h"], "S2": ["btemp_50.0v","btemp_50.0h","btemp_52.0v","btemp_52.0h","btemp_53.24v","btemp_53.24h","btemp_53.75v","btemp_53.75h","btemp_118.0_3v","btemp_118.0_2v","btemp_118.0_1.4v","btemp_118.0_1.2v","btemp_165.5v","btemp_183.0_2v","btemp_183.0_3v","btemp_183.0_7v"]}
+        self.MWRI_DATASETS_EXACT = {"btemp_10.0v":"btemp_10.65v", "btemp_10.0h":"btemp_10.65h", "btemp_18.0v":"btemp_18.7v", "btemp_18.0h":"btemp_18.7h", "btemp_23.0v":"btemp_23.8v", "btemp_23.0h":"btemp_23.8h", "btemp_37.0v":"btemp_36.5v", "btemp_37.0h":"btemp_36.5h", "btemp_89.0v":"btemp_89.0v", "btemp_89.0v":"btemp_89.0h", "btemp_50.0v":"btemp_50.3v", "btemp_50.0h":"btemp_50.3h", "btemp_52.0v":"btemp_52.61v", "btemp_52.0h":"btemp_52.61h", "btemp_53.24v":"btemp_53.24v", "btemp_53.24h":"btemp_53.24h", "btemp_53.75v":"btemp_53.75v", "btemp_53.75h":"btemp_53.75h", "btemp_118.0_3v":"btemp_118.7503_3.2v", "btemp_118.0_2v":"btemp_118.7503_2.1v", "btemp_118.0_1.4v":"btemp_118.7503_1.4v", "btemp_118.0_1.2v":"btemp_118.7503_1.2v", "btemp_165.5v":"btemp_165.5_0.75v", "btemp_183.0_2v":"btemp_183.31_2v", "btemp_183.0_3v":"btemp_183.31_3.4v", "btemp_183.0_7v":"btemp_183.31_7v"}
         self.COMPOSITE_BANDS = {
             "89_pct": {"dataset": "S1", "bands":["btemp_89.0v","btemp_89.0h"], "func": PolarizationCorrectedTemperature, "fractions":((1.7, 0.7)), "rgb": False},
             "89_color": {"dataset": "S1", "bands":["btemp_89.0v","btemp_89.0h"], "func": Color_89, "fractions":((1.7, 0.7)), "rgb": True},
@@ -221,6 +226,9 @@ class FY3G_MWRI_L1(object):
 
     def all_available_datasets(self):
         return self.MWRI_DATASETS["S1"] + self.MWRI_DATASETS["S2"]
+
+    def get_exact_dataset_name(self, dataset_name):
+        return self.MWRI_DATASETS_EXACT[dataset_name]
 
     def load(self, name):
         if name in self.MWRI_DATASETS["S1"]:
