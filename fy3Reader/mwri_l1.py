@@ -18,10 +18,10 @@ class FY3D_MWRI_L1(object):
         self.data = self.latitude = self.longitude = None
         self.MWRI_DATASETS = {"S1": ["btemp_10.0v","btemp_10.0h","btemp_18.0v","btemp_18.0h","btemp_23.0v","btemp_23.0h","btemp_37.0v","btemp_37.0h","btemp_89.0v","btemp_89.0h"]}
         self.COMPOSITE_BANDS = {
-            "89_pct": {"dataset": "S1", "bands":["btemp_89.0v","btemp_89.0h"], "func": PolarizationCorrectedTemperature, "fractions":((1.7, 0.7))},
-            "89_color": {"dataset": "S1", "bands":["btemp_89.0v","btemp_89.0h"], "func": Color_89, "fractions":((1.7, 0.7))},
-            "37_pct": {"dataset": "S1", "bands":["btemp_37.0v","btemp_37.0h"], "func": PolarizationCorrectedTemperature, "fractions":((2.15, 1.15))},
-            "37_color": {"dataset": "S1", "bands":["btemp_37.0v","btemp_37.0h"], "func": Color_37, "fractions":((2.15, 1.15))},
+            "89_pct": {"dataset": "S1", "bands":["btemp_89.0v","btemp_89.0h"], "func": PolarizationCorrectedTemperature, "fractions":((1.7, 0.7)), "rgb": False},
+            "89_color": {"dataset": "S1", "bands":["btemp_89.0v","btemp_89.0h"], "func": Color_89, "fractions":((1.7, 0.7)), "rgb": True},
+            "37_pct": {"dataset": "S1", "bands":["btemp_37.0v","btemp_37.0h"], "func": PolarizationCorrectedTemperature, "fractions":((2.15, 1.15)), "rgb": False},
+            "37_color": {"dataset": "S1", "bands":["btemp_37.0v","btemp_37.0h"], "func": Color_37, "fractions":((2.15, 1.15)), "rgb": True},
         }
 
     @staticmethod
@@ -161,7 +161,10 @@ class FY3D_MWRI_L1(object):
                 self.data[idx] = interp_data(d, to_shape)
             # make data projected
             cm = self.composite_func(self.data, fractions=self.COMPOSITE_BANDS[self.dataset_name]["fractions"])
-            self.data = rgb_project(self.longitude, self.latitude, cm.composite(), **kwargs)
+            if self.COMPOSITE_BANDS[self.dataset_name]["rgb"]:
+                self.data = rgb_project(self.longitude, self.latitude, cm.composite(), **kwargs)
+            else:
+                self.data = cm.composite()
             self.composite_func = None
 
     def get_lonlats(self):
@@ -182,10 +185,10 @@ class FY3G_MWRI_L1(object):
         self.data = self.latitude = self.longitude = None
         self.MWRI_DATASETS = {"S1": ["btemp_10.0v","btemp_10.0h","btemp_18.0v","btemp_18.0h","btemp_23.0v","btemp_23.0h","btemp_37.0v","btemp_37.0h","btemp_89.0v","btemp_89.0h"], "S2": ["btemp_50v","btemp_50.0h","btemp_52.0v","btemp_52.0h","btemp_53.24v","btemp_53.24h","btemp_53.75v","btemp_53.75h","btemp_118.0v","btemp_165.0v","btemp_183.0v"]}
         self.COMPOSITE_BANDS = {
-            "89_pct": {"dataset": "S1", "bands":["btemp_89.0v","btemp_89.0h"], "func": PolarizationCorrectedTemperature, "fractions":((1.7, 0.7))},
-            "89_color": {"dataset": "S1", "bands":["btemp_89.0v","btemp_89.0h"], "func": Color_89, "fractions":((1.7, 0.7))},
-            "37_pct": {"dataset": "S1", "bands":["btemp_37.0v","btemp_37.0h"], "func": PolarizationCorrectedTemperature, "fractions":((2.15, 1.15))},
-            "37_color": {"dataset": "S1", "bands":["btemp_37.0v","btemp_37.0h"], "func": Color_37, "fractions":((2.15, 1.15))},
+            "89_pct": {"dataset": "S1", "bands":["btemp_89.0v","btemp_89.0h"], "func": PolarizationCorrectedTemperature, "fractions":((1.7, 0.7)), "rgb": False},
+            "89_color": {"dataset": "S1", "bands":["btemp_89.0v","btemp_89.0h"], "func": Color_89, "fractions":((1.7, 0.7)), "rgb": True},
+            "37_pct": {"dataset": "S1", "bands":["btemp_37.0v","btemp_37.0h"], "func": PolarizationCorrectedTemperature, "fractions":((2.15, 1.15)), "rgb": False},
+            "37_color": {"dataset": "S1", "bands":["btemp_37.0v","btemp_37.0h"], "func": Color_37, "fractions":((2.15, 1.15)), "rgb": True},
         }
 
     @staticmethod
@@ -332,7 +335,10 @@ class FY3G_MWRI_L1(object):
                 self.data[idx] = interp_data(d, to_shape)
             # make data projected
             cm = self.composite_func(self.data, fractions=self.COMPOSITE_BANDS[self.dataset_name]["fractions"])
-            self.data = rgb_project(self.longitude, self.latitude, cm.composite(), **kwargs)
+            if self.COMPOSITE_BANDS[self.dataset_name]["rgb"]:
+                self.data = rgb_project(self.longitude, self.latitude, cm.composite(), **kwargs)
+            else:
+                self.data = cm.composite()
             self.composite_func = None
 
     def get_lonlats(self):
