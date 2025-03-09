@@ -4,8 +4,18 @@ import h5py
 import numpy as np
 from datetime import datetime
 from functools import lru_cache
-from fy3Reader.resample import kdtree_interp, spline_interp, bicubic_interp, rgb_project
-from fy3Reader.composite import PolarizationCorrectedTemperature, Color_89, Color_37
+from fy3Reader.resample import (
+    lonlat_interp,
+    kdtree_interp,
+    spline_interp,
+    bicubic_interp,
+    rgb_project
+)
+from fy3Reader.composite import (
+    PolarizationCorrectedTemperature,
+    Color_89,
+    Color_37
+)
 
 class MWRI_BASE(object):
 
@@ -114,9 +124,9 @@ class MWRI_BASE(object):
             if self.dataset_name in self.COMPOSITE_BANDS:
                 return
             if resampler == 'nearest':
-                self.latitude = kdtree_interp(self.latitude, to_shape)
-                self.longitude = kdtree_interp(self.longitude, to_shape)
-                self.data = kdtree_interp(self.data, to_shape)
+                self.longitude, self.latitude, self.data = kdtree_interp(
+                    self.longitude, self.latitude, self.data, to_shape, no_xy=False
+                )
             elif resampler == 'spline':
                 self.latitude = spline_interp(self.latitude, to_shape)
                 self.longitude = spline_interp(self.longitude, to_shape)
@@ -129,16 +139,25 @@ class MWRI_BASE(object):
             # start interploation
             if resampler == 'nearest':
                 # need higher precision lonlat to avoid strips
-                interp_lonlat = spline_interp
+                interp_lonlat = lonlat_interp
                 interp_data = kdtree_interp
+                need_xy = True
             elif resampler == 'spline':
                 interp_lonlat = interp_data = spline_interp
+                need_xy = False
             elif resampler == 'bicubic':
                 interp_lonlat = interp_data = bicubic_interp
-            self.latitude = interp_lonlat(self.latitude, to_shape)
-            self.longitude = interp_lonlat(self.longitude, to_shape)
+                need_xy = False
             for idx, d in enumerate(self.data):
-                self.data[idx] = interp_data(d, to_shape)
+                if need_xy:
+                    self.data[idx] = interp_data(self.longitude, self.latitude, d, to_shape, no_xy=True)
+                else:
+                    self.data[idx] = interp_data(d, to_shape)
+            if need_xy:
+                self.longitude, self.latitude = interp_lonlat(self.longitude, self.latitude, to_shape)
+            else:
+                self.latitude = interp_lonlat(self.latitude, to_shape)
+                self.longitude = interp_lonlat(self.longitude, to_shape)
             # make data projected
             cm = self.composite_func(self.data, fractions=self.COMPOSITE_BANDS[self.dataset_name]["fractions"])
             if self.COMPOSITE_BANDS[self.dataset_name]["rgb"]:
