@@ -13,18 +13,29 @@ except ImportError:
     import pyximport; pyximport.install()
     from fy3Reader.bicubic_interp import bicubic
 
-def kdtree_interp(arr, to_shape):
+def lonlat_interp(x, y, to_shape):
     H, W = to_shape
-    ny, nx = arr.shape
-    xx, yy = np.meshgrid(np.arange(nx), np.arange(ny))
-    p = np.vstack([xx.ravel(), yy.ravel()]).T
-    x_new, y_new = np.meshgrid(np.linspace(0, nx - 1, H),
-                               np.linspace(0, ny - 1, W))
-    p_new = np.vstack([x_new.ravel(), y_new.ravel()]).T
-    tree = cKDTree(p)
-    dist, idx = tree.query(p_new)
+    xs, ys = x.ravel(), y.ravel()
+    xmin, xmax = xs.min(), xs.max()
+    ymin, ymax = ys.min(), ys.max()
+    xn, yn = np.meshgrid(np.linspace(xmin, xmax, W),
+                         np.linspace(ymin, ymax, H))
+    return xn, yn
+
+def kdtree_interp(x, y, arr, to_shape, no_xy=False):
+    H, W = to_shape
+    xs, ys = x.ravel(), y.ravel()
+    xmin, xmax = xs.min(), xs.max()
+    ymin, ymax = ys.min(), ys.max()
+    xn, yn = np.meshgrid(np.linspace(xmin, xmax, W),
+                         np.linspace(ymin, ymax, H))
+    tree = cKDTree(tuple(zip(xs, ys)))
+    dist, idx = tree.query(tuple(zip(xn.ravel(), yn.ravel())))
     new_arr = arr.ravel()[idx].reshape(H, W)
-    return new_arr
+    if no_xy:
+        return new_arr
+    else:
+        return xn, yn, new_arr
 
 def spline_interp(arr, to_shape):
     H, W = to_shape
