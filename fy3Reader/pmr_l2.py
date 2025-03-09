@@ -103,9 +103,9 @@ class FY3G_PMR_L2(object):
         if not len(to_shape) == 2:
             raise ValueError("`to_shape` should be a list or tuple that length is 2.")
         if resampler == 'nearest':
-            self.latitude = kdtree_interp(self.latitude, to_shape)
-            self.longitude = kdtree_interp(self.longitude, to_shape)
-            self.data = kdtree_interp(self.data, to_shape)
+            self.longitude, self.latitude, self.data = kdtree_interp(
+                self.longitude, self.latitude, self.data, to_shape
+            )
         elif resampler == 'spline':
             self.latitude = spline_interp(self.latitude, to_shape)
             self.longitude = spline_interp(self.longitude, to_shape)
