@@ -1,8 +1,8 @@
 import numpy as np
 from pyproj import Proj, transform
 from scipy.spatial import cKDTree
+from scipy.interpolate import griddata
 from scipy.ndimage import binary_dilation
-from scipy.interpolate import RectBivariateSpline
 
 try:
     from fy3Reader.bicubic_interp import bicubic
@@ -22,29 +22,39 @@ def lonlat_interp(x, y, to_shape):
                          np.linspace(ymin, ymax, H))
     return xn, yn
 
-def kdtree_interp(x, y, arr, to_shape, no_xy=False):
+def kdtree_interp(x, y, arr, to_shape, threshold_mult=2, no_xy=False):
+    mask = ~np.isnan(arr)
+    valid_lon = x[mask].ravel()
+    valid_lat = y[mask].ravel()
+    valid_data = arr[mask].ravel()
+    if len(valid_data) == 0:
+        return np.full(to_shape, np.nan)
+    tree = cKDTree(np.column_stack((valid_lon, valid_lat)))
+    nn_distances, _ = tree.query(tree.data, k=2)
+    max_nn_distance = np.max(nn_distances[:, 1])
+    threshold = max_nn_distance * threshold_mult
+    lon_grid, lat_grid = lonlat_interp(x, y, to_shape)
+    target_points = np.column_stack((lon_grid.ravel(), lat_grid.ravel()))
+    distances, indices = tree.query(target_points, k=1)
+    interpolated = valid_data[indices].astype(float)
+    interpolated[distances > threshold] = np.nan
+    if no_xy:
+        return interpolated.reshape(to_shape)
+    else:
+        return lon_grid, lat_grid, interpolated.reshape(to_shape)
+
+def spline_interp(x, y, arr, to_shape, no_xy=False):
     H, W = to_shape
-    xs, ys = x.ravel(), y.ravel()
-    xmin, xmax = xs.min(), xs.max()
-    ymin, ymax = ys.min(), ys.max()
-    xn, yn = np.meshgrid(np.linspace(xmin, xmax, W),
-                         np.linspace(ymin, ymax, H))
-    tree = cKDTree(tuple(zip(xs, ys)))
-    dist, idx = tree.query(tuple(zip(xn.ravel(), yn.ravel())))
-    new_arr = arr.ravel()[idx].reshape(H, W)
+    x, y = x.ravel(), y.ravel()
+    xmin, xmax = x.min(), x.max()
+    ymin, ymax = y.min(), y.max()
+    newx, newy = np.meshgrid(np.linspace(xmin, xmax, W),
+                             np.linspace(ymin, ymax, H))
+    new_arr = griddata(np.dstack((x, y))[0], arr.ravel(), (newx, newy), method='linear')
     if no_xy:
         return new_arr
     else:
         return xn, yn, new_arr
-
-def spline_interp(arr, to_shape):
-    H, W = to_shape
-    ny, nx = arr.shape
-    x, y = np.arange(nx), np.arange(ny)
-    spline = RectBivariateSpline(y, x, arr)
-    newx, newy = np.linspace(0, nx - 1, W), np.linspace(0, ny - 1, H)
-    new_arr = spline(newy, newx)
-    return new_arr
 
 def bicubic_interp(arr, to_shape):
     ny, nx = arr.shape
