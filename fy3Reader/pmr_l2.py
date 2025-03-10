@@ -107,9 +107,9 @@ class FY3G_PMR_L2(object):
                 self.longitude, self.latitude, self.data, to_shape
             )
         elif resampler == 'spline':
-            self.latitude = spline_interp(self.latitude, to_shape)
-            self.longitude = spline_interp(self.longitude, to_shape)
-            self.data = spline_interp(self.data, to_shape)
+            self.longitude, self.latitude, self.data = spline_interp(
+                self.longitude, self.latitude, self.data, to_shape
+            )
         elif resampler == 'bicubic':
             self.latitude = bicubic_interp(self.latitude, to_shape)
             self.longitude = bicubic_interp(self.longitude, to_shape)
