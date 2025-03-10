@@ -128,9 +128,9 @@ class MWRI_BASE(object):
                     self.longitude, self.latitude, self.data, to_shape, no_xy=False
                 )
             elif resampler == 'spline':
-                self.latitude = spline_interp(self.latitude, to_shape)
-                self.longitude = spline_interp(self.longitude, to_shape)
-                self.data = spline_interp(self.data, to_shape)
+                self.longitude, self.latitude, self.data = spline_interp(
+                    self.longitude, self.latitude, self.data, to_shape, no_xy=False
+                )
             elif resampler == 'bicubic':
                 self.latitude = bicubic_interp(self.latitude, to_shape)
                 self.longitude = bicubic_interp(self.longitude, to_shape)
@@ -143,8 +143,9 @@ class MWRI_BASE(object):
                 interp_data = kdtree_interp
                 need_xy = True
             elif resampler == 'spline':
-                interp_lonlat = interp_data = spline_interp
-                need_xy = False
+                interp_lonlat = lonlat_interp
+                interp_data = spline_interp
+                need_xy = True
             elif resampler == 'bicubic':
                 interp_lonlat = interp_data = bicubic_interp
                 need_xy = False
