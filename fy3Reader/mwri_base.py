@@ -11,11 +11,7 @@ from fy3Reader.resample import (
     bicubic_interp,
     rgb_project
 )
-from fy3Reader.composite import (
-    PolarizationCorrectedTemperature,
-    Color_89,
-    Color_37
-)
+from fy3Reader.composite import *
 
 class MWRI_BASE(object):
 
@@ -132,33 +128,24 @@ class MWRI_BASE(object):
                     self.longitude, self.latitude, self.data, to_shape, no_xy=False
                 )
             elif resampler == 'bicubic':
-                self.latitude = bicubic_interp(self.latitude, to_shape)
-                self.longitude = bicubic_interp(self.longitude, to_shape)
-                self.data = bicubic_interp(self.data, to_shape)
+                self.longitude, self.latitude, self.data = bicubic_interp(
+                    self.longitude, self.latitude, self.data, to_shape, no_xy=False
+                )
         else:
             # start interploation
             if resampler == 'nearest':
                 # need higher precision lonlat to avoid strips
                 interp_lonlat = lonlat_interp
                 interp_data = kdtree_interp
-                need_xy = True
             elif resampler == 'spline':
                 interp_lonlat = lonlat_interp
                 interp_data = spline_interp
-                need_xy = True
             elif resampler == 'bicubic':
-                interp_lonlat = interp_data = bicubic_interp
-                need_xy = False
+                interp_lonlat = lonlat_interp
+                interp_data = bicubic_interp
             for idx, d in enumerate(self.data):
-                if need_xy:
-                    self.data[idx] = interp_data(self.longitude, self.latitude, d, to_shape, no_xy=True)
-                else:
-                    self.data[idx] = interp_data(d, to_shape)
-            if need_xy:
-                self.longitude, self.latitude = interp_lonlat(self.longitude, self.latitude, to_shape)
-            else:
-                self.latitude = interp_lonlat(self.latitude, to_shape)
-                self.longitude = interp_lonlat(self.longitude, to_shape)
+                self.data[idx] = interp_data(self.longitude, self.latitude, d, to_shape, no_xy=True)
+            self.longitude, self.latitude = interp_lonlat(self.longitude, self.latitude, to_shape)
             # make data projected
             cm = self.composite_func(self.data, fractions=self.COMPOSITE_BANDS[self.dataset_name]["fractions"])
             if self.COMPOSITE_BANDS[self.dataset_name]["rgb"]:
