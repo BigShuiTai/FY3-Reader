@@ -1,109 +1,93 @@
-# cython: language_level=3
+# cython: language_level=3, boundscheck=False, wraparound=False, nonecheck=False, cdivision=True, initializedcheck=False
+# distutils: define_macros=NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION
 # Modified from https://github.com/rootpine/Bicubic-interpolation
+
 import numpy as np
 cimport numpy as np
+
 cimport cython
+from libc.math cimport floor, fabs, isnan
 
-from libc.math cimport floor as _floor, abs
 
-cdef int floor(double val):
-    return <int>_floor(val)
+cdef inline Py_ssize_t clamp_ssize(Py_ssize_t v,
+                                   Py_ssize_t lo,
+                                   Py_ssize_t hi) nogil:
+    if v < lo: return lo
+    if v > hi: return hi
+    return v
 
-# Interpolation kernel
-cdef double u(double s, double a):
-    s_abs = abs(s)
-    if (s_abs >= 0) & (s_abs <= 1):
-        return (a + 2) * (s_abs ** 3) - (a + 3) * (s_abs ** 2) + 1
-    elif (s_abs > 1) & (s_abs <= 2):
-        return a * (s_abs ** 3) - (5 * a) * (s_abs ** 2) + (8 * a) * s_abs - 4 * a
-    return 0
 
-# Padding
-@cython.boundscheck(False)
-cdef double[:, :] padding(double [:, :] img, int H, int W):
-    cdef double[:, :] zimg = np.zeros((H + 4, W + 4))
-    zimg[2 : H + 2, 2 : W + 2] = img
-    # Pad the first/last two col and row
-    zimg[2 : H + 2, 0:2] = img[:, 0:1]
-    zimg[H + 2 : H + 4, 2 : W + 2] = img[H - 1 : H, :]
-    zimg[2 : H + 2, W + 2 : W + 4] = img[:, W - 1 : W]
-    zimg[0:2, 2 : W + 2,] = img[0:1, :]
-    # Pad the missing eight points
-    zimg[0:2, 0:2] = img[0, 0]
-    zimg[H + 2 : H + 4, 0:2] = img[H - 1, 0]
-    zimg[H + 2 : H + 4, W + 2 : W + 4] = img[H - 1, W - 1]
-    zimg[0:2, W + 2 : W + 4] = img[0, W - 1]
-    return zimg
+cdef inline double u(double t, double a) nogil:
+    cdef double at = fabs(t)
+    if at <= 1.0:
+        return (a + 2.0)*at*at*at - (a + 3.0)*at*at + 1.0
+    elif at < 2.0:
+        return a*at*at*at - 5.0*a*at*at + 8.0*a*at - 4.0*a
+    else:
+        return 0.0
 
-# Bicubic operation
+
 @cython.cdivision(True)
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def bicubic(double[:, :] img, double h_ratio, double w_ratio, double a):
-    cdef int H, W, inc, dH, dW
-    cdef double[:, :] dst
-    cdef int c_H, c_W
-    cdef double[:] mat_l = np.zeros(4)
-    cdef double[:] mat_r = np.zeros(4)
-    cdef double[:, :] mat_m = np.zeros((4, 4))
-    cdef double[:] mat_lm = np.zeros(4)
-    # Get image size
-    H, W = img.shape[0], img.shape[1]
+@cython.nonecheck(False)
+def bicubic_map(double[:, ::1] img,
+                double[:, ::1] I,
+                double[:, ::1] J,
+                double a=-0.5):
+    cdef Py_ssize_t H  = img.shape[0]
+    cdef Py_ssize_t W  = img.shape[1]
+    cdef Py_ssize_t OH = I.shape[0]
+    cdef Py_ssize_t OW = I.shape[1]
 
-    img = padding(img, H, W)
-    # Create new image
-    dH = floor(H * h_ratio)
-    dW = floor(W * w_ratio)
-    dst = np.zeros((dH, dW))
+    cdef np.ndarray out_np = np.empty((OH, OW), dtype=np.float64)
+    cdef double[:, ::1] out = out_np
 
-    c_H =  0
-    while c_H < dH:
-        c_W = 0
-        while c_W < dW:
-            x = c_W / w_ratio + 2
-            y = c_H / h_ratio + 2
+    cdef Py_ssize_t r, c, ix, iy
+    cdef Py_ssize_t xi0, xi1, xi2, xi3, yi0, yi1, yi2, yi3
+    cdef double x, y, dx, dy
+    cdef double wx0, wx1, wx2, wx3, wy0, wy1, wy2, wy3
+    cdef double acc
 
-            x1 = 1 + x - floor(x)
-            x2 = x - floor(x)
-            x3 = floor(x) + 1 - x
-            x4 = floor(x) + 2 - x
+    for r in range(OH):
+        for c in range(OW):
+            y = I[r, c]
+            x = J[r, c]
 
-            y1 = 1 + y - floor(y)
-            y2 = y - floor(y)
-            y3 = floor(y) + 1 - y
-            y4 = floor(y) + 2 - y
+            if isnan(y) or isnan(x):
+                out[r, c] = np.nan
+                continue
 
-            mat_l[0] = u(x1, a)
-            mat_l[1] = u(x2, a)
-            mat_l[2] = u(x3, a)
-            mat_l[3] = u(x4, a)
-            mat_m[0, 0] = img[int(y - y1), int(x - x1)]
-            mat_m[0, 1] = img[int(y - y2), int(x - x1)]
-            mat_m[0, 2] = img[int(y + y3), int(x - x1)]
-            mat_m[0, 3] = img[int(y + y4), int(x - x1)]
-            mat_m[1, 0] = img[int(y - y1), int(x - x2)]
-            mat_m[1, 1] = img[int(y - y2), int(x - x2)]
-            mat_m[1, 2] = img[int(y + y3), int(x - x2)]
-            mat_m[1, 3] = img[int(y + y4), int(x - x2)]
-            mat_m[2, 0] = img[int(y - y1), int(x + x3)]
-            mat_m[2, 1] = img[int(y - y2), int(x + x3)]
-            mat_m[2, 2] = img[int(y + y3), int(x + x3)]
-            mat_m[2, 3] = img[int(y + y4), int(x + x3)]
-            mat_m[3, 0] = img[int(y - y1), int(x + x4)]
-            mat_m[3, 1] = img[int(y - y2), int(x + x4)]
-            mat_m[3, 2] = img[int(y + y3), int(x + x4)]
-            mat_m[3, 3] = img[int(y + y4), int(x + x4)]
-            mat_r[0] = u(y1, a)
-            mat_r[1] = u(y2, a)
-            mat_r[2] = u(y3, a)
-            mat_r[3] = u(y4, a)
-            # dot(mat_l, mat_m)
-            mat_lm[0] = mat_l[0] * mat_m[0, 0] + mat_l[1] * mat_m[1, 0] + mat_l[2] * mat_m[2, 0] + mat_l[3] * mat_m[3, 0]
-            mat_lm[1] = mat_l[0] * mat_m[0, 1] + mat_l[1] * mat_m[1, 1] + mat_l[2] * mat_m[2, 1] + mat_l[3] * mat_m[3, 1]
-            mat_lm[2] = mat_l[0] * mat_m[0, 2] + mat_l[1] * mat_m[1, 2] + mat_l[2] * mat_m[2, 2] + mat_l[3] * mat_m[3, 2]
-            mat_lm[3] = mat_l[0] * mat_m[0, 3] + mat_l[1] * mat_m[1, 3] + mat_l[2] * mat_m[2, 3] + mat_l[3] * mat_m[3, 3]
-            # dot(mat_lm, mat_r)
-            dst[c_H, c_W] = mat_lm[0] * mat_r[0] + mat_lm[1] * mat_r[1] + mat_lm[2] * mat_r[2] + mat_lm[3] * mat_r[3]
-            c_W += 1
-        c_H += 1
-    return np.asarray(dst)
+            if y < 0.0:       y = 0.0
+            elif y > H - 1:   y = H - 1.0
+            if x < 0.0:       x = 0.0
+            elif x > W - 1:   x = W - 1.0
+
+            iy = <Py_ssize_t>floor(y)
+            ix = <Py_ssize_t>floor(x)
+            dy = y - iy
+            dx = x - ix
+
+            xi0 = clamp_ssize(ix - 1, 0, W - 1)
+            xi1 = ix
+            xi2 = clamp_ssize(ix + 1, 0, W - 1)
+            xi3 = clamp_ssize(ix + 2, 0, W - 1)
+
+            yi0 = clamp_ssize(iy - 1, 0, H - 1)
+            yi1 = iy
+            yi2 = clamp_ssize(iy + 1, 0, H - 1)
+            yi3 = clamp_ssize(iy + 2, 0, H - 1)
+
+            wx0 = u(1.0 + dx, a);  wx1 = u(dx, a)
+            wx2 = u(1.0 - dx, a);  wx3 = u(2.0 - dx, a)
+            wy0 = u(1.0 + dy, a);  wy1 = u(dy, a)
+            wy2 = u(1.0 - dy, a);  wy3 = u(2.0 - dy, a)
+
+            acc  = (wx0*img[yi0, xi0] + wx1*img[yi0, xi1] + wx2*img[yi0, xi2] + wx3*img[yi0, xi3]) * wy0
+            acc += (wx0*img[yi1, xi0] + wx1*img[yi1, xi1] + wx2*img[yi1, xi2] + wx3*img[yi1, xi3]) * wy1
+            acc += (wx0*img[yi2, xi0] + wx1*img[yi2, xi1] + wx2*img[yi2, xi2] + wx3*img[yi2, xi3]) * wy2
+            acc += (wx0*img[yi3, xi0] + wx1*img[yi3, xi1] + wx2*img[yi3, xi2] + wx3*img[yi3, xi3]) * wy3
+
+            out[r, c] = acc
+
+    return out_np
