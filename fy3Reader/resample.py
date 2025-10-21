@@ -2,16 +2,15 @@ import numpy as np
 from pyproj import Proj, transform
 from scipy.spatial import cKDTree
 from scipy.interpolate import griddata
+from scipy.interpolate import CloughTocher2DInterpolator
+from scipy.ndimage import map_coordinates
 from scipy.ndimage import binary_dilation
 
 try:
-    from fy3Reader.bicubic_interp import bicubic
+    from fy3Reader.bicubic_interp import bicubic_map
+    _HAS_CY_BICUBIC_MAP = True
 except ImportError:
-    # pip install Cython
-    # pkg-config --cflags numpy -> /path/to/numpy
-    # export C_INCLUDE_PATH=/path/to/numpy:$C_INCLUDE_PATH
-    import pyximport; pyximport.install()
-    from fy3Reader.bicubic_interp import bicubic
+    _HAS_CY_BICUBIC_MAP = False
 
 def lonlat_interp(x, y, to_shape):
     H, W = to_shape
@@ -36,12 +35,10 @@ def kdtree_interp(x, y, arr, to_shape, threshold_mult=2, no_xy=False):
     lon_grid, lat_grid = lonlat_interp(x, y, to_shape)
     target_points = np.column_stack((lon_grid.ravel(), lat_grid.ravel()))
     distances, indices = tree.query(target_points, k=1)
-    interpolated = valid_data[indices].astype(float)
-    interpolated[distances > threshold] = np.nan
-    if no_xy:
-        return interpolated.reshape(to_shape)
-    else:
-        return lon_grid, lat_grid, interpolated.reshape(to_shape)
+    new_arr = valid_data[indices].astype(float)
+    new_arr[distances > threshold] = np.nan
+    new_arr = new_arr.reshape(to_shape)
+    return (new_arr if no_xy else lon_grid, lat_grid, new_arr)
 
 def spline_interp(x, y, arr, to_shape, no_xy=False):
     H, W = to_shape
@@ -51,16 +48,29 @@ def spline_interp(x, y, arr, to_shape, no_xy=False):
     newx, newy = np.meshgrid(np.linspace(xmin, xmax, W),
                              np.linspace(ymin, ymax, H))
     new_arr = griddata(np.dstack((x, y))[0], arr.ravel(), (newx, newy), method='linear')
-    if no_xy:
-        return new_arr
-    else:
-        return xn, yn, new_arr
+    return (new_arr if no_xy else xn, yn, new_arr)
 
-def bicubic_interp(arr, to_shape):
-    ny, nx = arr.shape
-    dy, dx = to_shape
-    new_arr = bicubic(arr.astype('double'), dy/ny, dx/nx, a=-0.5)
-    return new_arr
+def _build_index_interpolators(lon, lat):
+    H, W = lon.shape
+    I, J = np.indices((H, W))
+    m = ~(np.isnan(lon) | np.isnan(lat))
+    pts = np.column_stack([lon[m].ravel(), lat[m].ravel()])
+    ival = I[m].ravel().astype(float)
+    jval = J[m].ravel().astype(float)
+    Itp = CloughTocher2DInterpolator(pts, ival, fill_value=np.nan)
+    Jtp = CloughTocher2DInterpolator(pts, jval, fill_value=np.nan)
+    return Itp, Jtp
+
+def bicubic_interp(x, y, arr, to_shape, a=-0.5, threshold_mult=2.0, no_xy=False):
+    lon_grid, lat_grid = lonlat_interp(x, y, to_shape)
+    Itp, Jtp = _build_index_interpolators(x, y)
+    Igrid = Itp(lon_grid, lat_grid)
+    Jgrid = Jtp(lon_grid, lat_grid)
+    if _HAS_CY_BICUBIC_MAP:
+        out = bicubic_map(arr.astype('double'), Igrid.astype('double'), Jgrid.astype('double'), a=a)
+    else:
+        out = map_coordinates(arr, [Igrid, Jgrid], order=3, mode='nearest', cval=np.nan)
+    return (out if no_xy else (lon_grid, lat_grid, out))
 
 def rgb_project(lons, lats, data, **kwargs):
     if not len(data.shape) == 3:
