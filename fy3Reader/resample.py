@@ -38,7 +38,7 @@ def kdtree_interp(x, y, arr, to_shape, threshold_mult=2, no_xy=False):
     new_arr = valid_data[indices].astype(float)
     new_arr[distances > threshold] = np.nan
     new_arr = new_arr.reshape(to_shape)
-    return (new_arr if no_xy else lon_grid, lat_grid, new_arr)
+    return new_arr if no_xy else (lon_grid, lat_grid, new_arr)
 
 def spline_interp(x, y, arr, to_shape, no_xy=False):
     H, W = to_shape
@@ -48,7 +48,7 @@ def spline_interp(x, y, arr, to_shape, no_xy=False):
     newx, newy = np.meshgrid(np.linspace(xmin, xmax, W),
                              np.linspace(ymin, ymax, H))
     new_arr = griddata(np.dstack((x, y))[0], arr.ravel(), (newx, newy), method='linear')
-    return (new_arr if no_xy else xn, yn, new_arr)
+    return new_arr if no_xy else (xn, yn, new_arr)
 
 def _build_index_interpolators(lon, lat):
     H, W = lon.shape
@@ -70,7 +70,7 @@ def bicubic_interp(x, y, arr, to_shape, a=-0.5, threshold_mult=2.0, no_xy=False)
         out = bicubic_map(arr.astype('double'), Igrid.astype('double'), Jgrid.astype('double'), a=a)
     else:
         out = map_coordinates(arr, [Igrid, Jgrid], order=3, mode='nearest', cval=np.nan)
-    return (out if no_xy else (lon_grid, lat_grid, out))
+    return out if no_xy else (lon_grid, lat_grid, out)
 
 def rgb_project(lons, lats, data, **kwargs):
     if not len(data.shape) == 3:
