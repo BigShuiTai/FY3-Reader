@@ -88,7 +88,7 @@ class MWHS_BASE(object):
     def crop(self, ll_box):
         if self.longitude is None or self.latitude is None or self.data is None:
             raise ValueError(
-                "Longitude or Latitude or data is not empty. "
+                "Longitude or Latitude or data is empty. "
                 "You should run `load` first."
             )
         yi, yj, xi, xj = self._get_indices(ll_box)
