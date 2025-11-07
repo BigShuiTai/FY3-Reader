@@ -25,10 +25,12 @@ class MWRI_BASE(object):
         self.MWRI_DATASETS = None
         self.MWRI_DATASETS_EXACT = None
         self.COMPOSITE_BANDS = {
-            "89_pct": {"dataset": "S1", "bands":["btemp_89.0v","btemp_89.0h"], "func": PolarizationCorrectedTemperature, "fractions":((1.7, 0.7)), "rgb": False},
-            "89_color": {"dataset": "S1", "bands":["btemp_89.0v","btemp_89.0h"], "func": Color_89, "fractions":((1.7, 0.7)), "rgb": True},
-            "37_pct": {"dataset": "S1", "bands":["btemp_37.0v","btemp_37.0h"], "func": PolarizationCorrectedTemperature, "fractions":((2.15, 1.15)), "rgb": False},
-            "37_color": {"dataset": "S1", "bands":["btemp_37.0v","btemp_37.0h"], "func": Color_37, "fractions":((2.15, 1.15)), "rgb": True},
+            "89_pct": {"dataset": "S1", "bands": ["btemp_89.0v","btemp_89.0h"], "func": PolarizationCorrectedTemperature, "fractions": ((1.7, 0.7)), "rgb": False},
+            "89_color": {"dataset": "S1", "bands": ["btemp_89.0v","btemp_89.0h"], "func": Color_89, "fractions": ((1.7, 0.7)), "rgb": True},
+            "37_pct": {"dataset": "S1", "bands": ["btemp_37.0v","btemp_37.0h"], "func": PolarizationCorrectedTemperature, "fractions": ((2.15, 1.15)), "rgb": False},
+            "37_color": {"dataset": "S1", "bands": ["btemp_37.0v","btemp_37.0h"], "func": Color_37, "fractions": ((2.15, 1.15)), "rgb": True},
+            "19_pd": {"dataset": "S1", "bands": ["btemp_19.0v","btemp_19.0h"], "func": PolarizationDifference, "fractions": ((1.0, 1.0)), "rgb": False},
+            "hydrometeor_type": {"dataset": "S1", "bands": ["btemp_19.0v","btemp_19.0h","btemp_89.0v","btemp_89.0h"], "func": HydrometeorType, "fractions": ((1.0, 1.0), (1.7, 0.7)), "rgb": True},
         }
 
     @staticmethod
@@ -97,7 +99,7 @@ class MWRI_BASE(object):
     def crop(self, ll_box):
         if self.longitude is None or self.latitude is None or self.data is None:
             raise ValueError(
-                "Longitude or Latitude or data is empty. "
+                "Longitude or Latitude or data is not empty. "
                 "You should run `load` first."
             )
         yi, yj, xi, xj = self._get_indices(ll_box)

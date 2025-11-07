@@ -8,7 +8,8 @@ from fy3Reader.resample import (
     lonlat_interp,
     kdtree_interp,
     spline_interp,
-    bicubic_interp
+    bicubic_interp,
+    rgb_project
 )
 
 class MWHS_BASE(object):
@@ -21,6 +22,7 @@ class MWHS_BASE(object):
         self.longitude = None
         self.MWHS_DATASETS = None
         self.MWHS_DATASETS_EXACT = None
+        self.COMPOSITE_BANDS = None
 
     @staticmethod
     def _cal_bt(dataset, intercept, slope):
@@ -88,13 +90,17 @@ class MWHS_BASE(object):
     def crop(self, ll_box):
         if self.longitude is None or self.latitude is None or self.data is None:
             raise ValueError(
-                "Longitude or Latitude or data is empty. "
+                "Longitude or Latitude or data is not empty. "
                 "You should run `load` first."
             )
         yi, yj, xi, xj = self._get_indices(ll_box)
         self.latitude = self.latitude[yi:yj, xi:xj]
         self.longitude = self.longitude[yi:yj, xi:xj]
-        self.data = self.data[yi:yj, xi:xj]
+        if self.composite_func is None:
+            self.data = self.data[yi:yj, xi:xj]
+        else:
+            for idx, d in enumerate(self.data):
+                self.data[idx] = d[yi:yj, xi:xj]
 
     def resample(self, resampler='nearest', to_shape=None, **kwargs):
         if resampler not in ('nearest', 'spline', 'bicubic'):
@@ -103,18 +109,43 @@ class MWHS_BASE(object):
             raise ValueError("`to_shape` parameter should be provided.")
         if not len(to_shape) == 2:
             raise ValueError("`to_shape` should be a list or tuple that length is 2.")
-        if resampler == 'nearest':
-            self.longitude, self.latitude, self.data = kdtree_interp(
-                self.longitude, self.latitude, self.data, to_shape, no_xy=False
-            )
-        elif resampler == 'spline':
-            self.longitude, self.latitude, self.data = spline_interp(
-                self.longitude, self.latitude, self.data, to_shape, no_xy=False
-            )
-        elif resampler == 'bicubic':
-            self.longitude, self.latitude, self.data = bicubic_interp(
-                self.longitude, self.latitude, self.data, to_shape, no_xy=False
-            )
+        if self.composite_func is None:
+            if self.dataset_name in self.COMPOSITE_BANDS:
+                return
+            if resampler == 'nearest':
+                self.longitude, self.latitude, self.data = kdtree_interp(
+                    self.longitude, self.latitude, self.data, to_shape, no_xy=False
+                )
+            elif resampler == 'spline':
+                self.longitude, self.latitude, self.data = spline_interp(
+                    self.longitude, self.latitude, self.data, to_shape, no_xy=False
+                )
+            elif resampler == 'bicubic':
+                self.longitude, self.latitude, self.data = bicubic_interp(
+                    self.longitude, self.latitude, self.data, to_shape, no_xy=False
+                )
+        else:
+            # start interploation
+            if resampler == 'nearest':
+                # need higher precision lonlat to avoid strips
+                interp_lonlat = lonlat_interp
+                interp_data = kdtree_interp
+            elif resampler == 'spline':
+                interp_lonlat = lonlat_interp
+                interp_data = spline_interp
+            elif resampler == 'bicubic':
+                interp_lonlat = lonlat_interp
+                interp_data = bicubic_interp
+            for idx, d in enumerate(self.data):
+                self.data[idx] = interp_data(self.longitude, self.latitude, d, to_shape, no_xy=True)
+            self.longitude, self.latitude = interp_lonlat(self.longitude, self.latitude, to_shape)
+            # make data projected
+            cm = self.composite_func(self.data, fractions=self.COMPOSITE_BANDS[self.dataset_name]["fractions"])
+            if self.COMPOSITE_BANDS[self.dataset_name]["rgb"]:
+                self.data = rgb_project(self.longitude, self.latitude, cm.composite(), **kwargs)
+            else:
+                self.data = cm.composite()
+            self.composite_func = None
 
     def get_lonlats(self):
         return self.longitude, self.latitude
