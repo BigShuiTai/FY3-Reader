@@ -38,16 +38,13 @@ class MWHS_BASE(object):
     @lru_cache(maxsize=2)
     def _get_indices(self, georange):
         latmin, latmax, lonmin, lonmax = georange
-        lat = self.latitude
-        lon = self.longitude
         barr = (
-            (lat > latmin - 0.5)
-            & (lat < latmax + 0.5)
-            & (lon > lonmin - 0.5)
-            & (lon < lonmax + 0.5)
+              (self.latitude >= latmin)
+            & (self.latitude <= latmax)
+            & (self.longitude >= lonmin)
+            & (self.longitude <= lonmax)
         )
-        barrind = np.where(barr)
-        barrind_y, barrind_x = barrind
+        barrind_y, barrind_x = np.where(barr)
         yi, yj = np.amin(barrind_y), np.amax(barrind_y)
         xi, xj = np.amin(barrind_x), np.amax(barrind_x)
         return yi, yj, xi, xj
@@ -87,13 +84,35 @@ class MWHS_BASE(object):
         except ValueError:
             return datetime.strptime(time, "%Y-%m-%d %H:%M:%S")
 
+    def _check_box(self, ll_box, idx_box):
+        yi, yj, xi, xj = idx_box
+        _lats = self.latitude[yi:yj, xi:xj]
+        _lons = self.longitude[yi:yj, xi:xj]
+        _valid_lats = ~(_lats == 65535)
+        _valid_lons = ~(_lons == 65535)
+        latmin, latmax, lonmin, lonmax = (
+            _lats[_valid_lats].min(),
+            _lats[_valid_lats].max(),
+            _lons[_valid_lons].min(),
+            _lons[_valid_lons].max()
+        )
+        check_latmin, check_latmax, check_lonmin, check_lonmax = ll_box
+        if (
+            abs(latmin - check_latmin) > 5 or \
+            abs(latmax - check_latmax) > 5 or \
+            abs(lonmin - check_lonmin) > 5 or \
+            abs(lonmax - check_lonmax) > 5
+        ):
+            raise ValueError("Check failed for larger area than expected after crop.")
+
     def crop(self, ll_box):
         if self.longitude is None or self.latitude is None or self.data is None:
             raise ValueError(
-                "Longitude or Latitude or data is not empty. "
-                "You should run `load` first."
+                "Longitude or Latitude or data is empty, "
+                "you should run `load` first."
             )
         yi, yj, xi, xj = self._get_indices(ll_box)
+        self._check_box(ll_box, (yi, yj, xi, xj))
         self.latitude = self.latitude[yi:yj, xi:xj]
         self.longitude = self.longitude[yi:yj, xi:xj]
         if self.composite_func is None:
@@ -102,7 +121,30 @@ class MWHS_BASE(object):
             for idx, d in enumerate(self.data):
                 self.data[idx] = d[yi:yj, xi:xj]
 
+    def composite(self, **kwargs):
+        if self.longitude is None or self.latitude is None or self.data is None:
+            raise ValueError(
+                "Longitude or Latitude or data is empty, "
+                "you should run `load` first."
+            )
+        if self.composite_func is None:
+            raise ValueError(
+                "Composite method for this band is not supported, "
+                "or you should reload the data after the previous composite."
+            )
+        cm = self.composite_func(self.data, fractions=self.COMPOSITE_BANDS[self.dataset_name]["fractions"])
+        if self.COMPOSITE_BANDS[self.dataset_name]["rgb"]:
+            self.data = rgb_project(self.longitude, self.latitude, cm.composite(), **kwargs)
+        else:
+            self.data = cm.composite()
+        self.composite_func = None
+
     def resample(self, resampler='nearest', to_shape=None, **kwargs):
+        if self.longitude is None or self.latitude is None or self.data is None:
+            raise ValueError(
+                "Longitude or Latitude or data is empty, "
+                "you should run `load` first."
+            )
         if resampler not in ('nearest', 'spline', 'bicubic'):
             raise ValueError("Resampler only supports `nearest`, `spline` and `bicubic`.")
         if to_shape is None:
@@ -140,12 +182,7 @@ class MWHS_BASE(object):
                 self.data[idx] = interp_data(self.longitude, self.latitude, d, to_shape, no_xy=True)
             self.longitude, self.latitude = interp_lonlat(self.longitude, self.latitude, to_shape)
             # make data projected
-            cm = self.composite_func(self.data, fractions=self.COMPOSITE_BANDS[self.dataset_name]["fractions"])
-            if self.COMPOSITE_BANDS[self.dataset_name]["rgb"]:
-                self.data = rgb_project(self.longitude, self.latitude, cm.composite(), **kwargs)
-            else:
-                self.data = cm.composite()
-            self.composite_func = None
+            self.composite(**kwargs)
 
     def get_lonlats(self):
         return self.longitude, self.latitude
