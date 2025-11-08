@@ -84,6 +84,27 @@ class FY3G_PMR_L2(object):
         except ValueError:
             return datetime.strptime(time, "%Y-%m-%d %H:%M:%S")
 
+    def _check_box(self, ll_box, idx_box):
+        yi, yj, xi, xj = idx_box
+        _lats = self.latitude[yi:yj, xi:xj]
+        _lons = self.longitude[yi:yj, xi:xj]
+        _valid_lats = ~(_lats == 65535)
+        _valid_lons = ~(_lons == 65535)
+        latmin, latmax, lonmin, lonmax = (
+            _lats[_valid_lats].min(),
+            _lats[_valid_lats].max(),
+            _lons[_valid_lons].min(),
+            _lons[_valid_lons].max()
+        )
+        check_latmin, check_latmax, check_lonmin, check_lonmax = ll_box
+        if (
+            (latmin - check_latmin) > 5 or \
+            (latmax - check_latmax) > 5 or \
+            (lonmin - check_lonmin) > 5 or \
+            (lonmax - check_lonmax) > 5
+        ):
+            raise ValueError("Check failed for larger area than expected after cropping.")
+
     def crop(self, ll_box):
         if self.longitude is None or self.latitude is None or self.data is None:
             raise ValueError(
@@ -91,11 +112,17 @@ class FY3G_PMR_L2(object):
                 "You should run `load` first."
             )
         yi, yj, xi, xj = self._get_indices(ll_box)
+        self._check_box(ll_box, (yi, yj, xi, xj))
         self.latitude = self.latitude[yi:yj, xi:xj]
         self.longitude = self.longitude[yi:yj, xi:xj]
         self.data = self.data[yi:yj, xi:xj]
 
     def resample(self, resampler='nearest', to_shape=None):
+        if self.longitude is None or self.latitude is None or self.data is None:
+            raise ValueError(
+                "Longitude or Latitude or data is empty. "
+                "You should run `load` first."
+            )
         if resampler not in ('nearest', 'spline', 'bicubic'):
             raise ValueError("Resampler only supports `nearest`, `spline` and `bicubic`.")
         if to_shape is None:

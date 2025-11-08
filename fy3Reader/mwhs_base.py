@@ -98,12 +98,12 @@ class MWHS_BASE(object):
         )
         check_latmin, check_latmax, check_lonmin, check_lonmax = ll_box
         if (
-            abs(latmin - check_latmin) > 5 or \
-            abs(latmax - check_latmax) > 5 or \
-            abs(lonmin - check_lonmin) > 5 or \
-            abs(lonmax - check_lonmax) > 5
+            (latmin - check_latmin) > 5 or \
+            (latmax - check_latmax) > 5 or \
+            (lonmin - check_lonmin) > 5 or \
+            (lonmax - check_lonmax) > 5
         ):
-            raise ValueError("Check failed for larger area than expected after crop.")
+            raise ValueError("Check failed for larger area than expected after cropping.")
 
     def crop(self, ll_box):
         if self.longitude is None or self.latitude is None or self.data is None:
